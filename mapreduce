@@ -1,0 +1,109 @@
+https://blog.csdn.net/jy02268879/article/details/80543935
+
+input:
+用户ID——标签
+
+tag:     (1)        (2)        (3)        (4)        (5)        (6)        (7)        (8)        (9)                   
+
+U1       1          5           0         6           1          0         6           5          0
+
+U2       1          4           1         5           1          0         4           0          4
+
+U3       0          9           3         6           0          3         6           4          8
+
+output:
+UserID: ItemId_value0, ItemId_value0,...
+
+package step1;
+ 
+import java.io.IOException;
+ 
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Mapper;
+ 
+/**
+ * @author liyijie
+ * @date 2018年5月13日下午10:36:18
+ * @email 37024760@qq.com
+ * @remark
+ * @version 
+ * 
+ * 将item profile转置
+ */
+public class Mapper1  extends Mapper<LongWritable, Text, Text, Text>  {
+	private Text outKey = new Text();
+	private Text outValue = new Text();
+	/**
+	 * key:1
+	 * value:1	1_0,2_3,3_-1,4_2,5_-3
+	 * */
+    @Override  
+    protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {  
+       String[] rowAndLine = value.toString().split("\t");
+       
+       //矩阵行号	物品ID
+       String itemID = rowAndLine[0];
+       //列值	用户ID_分值
+       String[] lines = rowAndLine[1].split(",");
+       
+       
+       for(int i = 0 ; i<lines.length; i++){
+    	   String userID = lines[i].split("_")[0];
+    	   String score = lines[i].split("_")[1];
+    	   
+    	   //key:列号	 用户ID	value:行号_值	 物品ID_分值
+    	   outKey.set(userID);
+    	   outValue.set(itemID+"_"+score);
+    	   
+    	   context.write(outKey, outValue);
+       }
+    } 
+}
+
+package step1;
+ 
+import java.io.IOException;
+ 
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Reducer;
+ 
+/**
+ * @author liyijie
+ * @date 2018年5月13日下午10:56:28
+ * @email 37024760@qq.com
+ * @remark
+ * @version 
+ * 
+ * 
+ * 
+ * 将item profile转置
+ */
+public class Reducer1 extends Reducer<Text, Text, Text, Text> {
+	private Text outKey = new Text();
+	private Text outValue = new Text();
+	
+	 //key:列号	 用户ID		value:行号_值,行号_值,行号_值,行号_值...	物品ID_分值
+	@Override
+	protected void reduce(Text key, Iterable<Text> values, Context context)
+			throws IOException, InterruptedException {
+		StringBuilder sb = new StringBuilder();
+		
+		//text:行号_值		物品ID_分值
+		for(Text text:values){  
+            sb.append(text).append(",");
+        }  
+		String line = null;
+		if(sb.toString().endsWith(",")){
+			line = sb.substring(0, sb.length()-1);
+		}
+	
+		
+		outKey.set(key);
+		outValue.set(line);
+		
+		context.write(outKey,outValue);  
+	}
+	
+	
+}
